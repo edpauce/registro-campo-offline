@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es-PE" data-campo="0">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#155e75">
+<meta name="description" content="Registro de caudales, niveles y calidad de agua en campo. Funciona sin conexión. Demostración con datos ficticios.">
+<title>Registro de campo — sin conexión</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="estilos.css?v=1.2.0">
+</head>
+<body>
+
+<header>
+  <h1>Registro de campo <span class="sub">Mediciones hídricas · funciona sin señal</span></h1>
+  <span class="chip pend" id="chipPend" style="display:none"></span>
+  <span class="chip" id="chipRed">…</span>
+</header>
+
+<main id="app">
+  <p class="vacio">Cargando…</p>
+</main>
+
+<nav>
+  <a href="#/inicio"   data-v="inicio"><i>⌂</i>Inicio</a>
+  <a href="#/ruta"     data-v="ruta"><i>◎</i>Recorrido</a>
+  <a href="#/bandeja"  data-v="bandeja"><i>☰</i>Bandeja<span class="badge" id="badgeBandeja" style="display:none"></span></a>
+  <a href="#/exportar" data-v="exportar"><i>⇩</i>Exportar</a>
+  <a href="#/ajustes"  data-v="ajustes"><i>⚙</i>Ajustes</a>
+</nav>
+
+<script>window.APP_VERSION = '1.2.0';</script>
+<script src="js/catalogo.js?v=1.2.0"></script>
+<script src="js/db.js?v=1.2.0"></script>
+<script src="js/xlsx.js?v=1.2.0"></script>
+<script src="js/ocr.js?v=1.2.0"></script>
+<script src="js/app.js?v=1.2.0"></script>
+</body>
+</html>

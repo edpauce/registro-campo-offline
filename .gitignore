@@ -1,0 +1,8 @@
+# Material local que no se publica: traspasos de sesión y controles privados
+HANDOFF-*.md
+_privado/
+
+# Sistema y herramientas
+.DS_Store
+node_modules/
+*.log

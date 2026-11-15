@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  node-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Sintaxis de los scripts de la app
+        run: for f in app/js/*.js app/sw.js; do node --check "$f"; done
+      - name: Manifest válido
+        run: node -e "JSON.parse(require('fs').readFileSync('app/manifest.webmanifest','utf8'))"
+      - name: Tests
+        run: npm test

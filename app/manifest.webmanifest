@@ -1,0 +1,15 @@
+{
+  "name": "Registro de campo — sin conexión",
+  "short_name": "Registro campo",
+  "description": "Registro de caudalímetros, piezómetros, pozos, planta de tratamiento y aforos. Funciona sin conexión.",
+  "lang": "es-PE",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#155e75",
+  "icons": [
+    { "src": "icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
