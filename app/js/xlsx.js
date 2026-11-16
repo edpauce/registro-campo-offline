@@ -138,11 +138,11 @@ ${hojas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openx
 
 const num = v => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v));
 
-/* Registro de producción y consumo (caudalímetros) */
+/* Caudalímetros */
 function hojaCaudalimetros(lecturas) {
   const filas = [
-    ['REGISTRO DE PRODUCCIÓN Y CONSUMO DE AGUA — CAUDALÍMETROS'],
-    ['ESTACIÓN', 'FECHA', 'HORA', 'ACUMULADO (m³)', 'CAUDAL INST. (l/s)', 'OBSERVACIONES', 'OPERADOR', 'ESTADO EQUIPO', 'ID REGISTRO']
+    ['LECTURAS DE CAUDALÍMETROS'],
+    ['PUNTO', 'FECHA', 'HORA', 'ACUMULADO (m³)', 'CAUDAL INSTANTÁNEO (l/s)', 'OBSERVACIONES', 'OPERADOR', 'ESTADO DEL EQUIPO', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'caudalometro').forEach(l => {
     filas.push([l.punto, l.fecha, l.hora, num(l.valores.acumulado), num(l.valores.instantaneo),
@@ -151,10 +151,10 @@ function hojaCaudalimetros(lecturas) {
   return { nombre: 'Caudalimetros', filas };
 }
 
-/* Niveles piezométricos */
+/* Piezómetros */
 function hojaPiezometros(lecturas) {
   const filas = [
-    ['REGISTRO DE NIVELES PIEZOMÉTRICOS'],
+    ['LECTURAS DE PIEZÓMETROS'],
     ['PIEZÓMETRO', 'FECHA', 'HORA', 'NIVEL (m)', 'OBSERVACIONES', 'OPERADOR', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'piezometro').forEach(l =>
@@ -162,62 +162,62 @@ function hojaPiezometros(lecturas) {
   return { nombre: 'Piezometros', filas };
 }
 
-/* Control de extracción de agua (pozos y bombas) */
+/* Pozos y bombas */
 function hojaPozos(lecturas) {
   const filas = [
-    ['CONTROL DE EXTRACCIÓN DE AGUA — POZOS Y BOMBAS'],
-    ['BOMBA', 'FECHA', 'HORA', 'CAUDAL (l/s)', 'VOLUMEN (m³)', 'T. BOMBEO (h)', 'VOLTAJE (V)', 'CORRIENTE (A)', 'NIVEL DINÁMICO (m)', 'OBSERVACIONES', 'ID REGISTRO']
+    ['LECTURAS DE POZOS Y BOMBAS'],
+    ['POZO', 'FECHA', 'HORA', 'CAUDAL (l/s)', 'VOLUMEN (m³)', 'HORAS DE BOMBEO', 'VOLTAJE (V)', 'CORRIENTE (A)', 'NIVEL DINÁMICO (m)', 'OBSERVACIONES', 'OPERADOR', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'pozo').forEach(l =>
     filas.push([l.punto, l.fecha, l.hora, num(l.valores.caudal), num(l.valores.volumen),
-      num(l.valores.horas), num(l.valores.voltios), num(l.valores.amperios), num(l.valores.nivelDinamico), l.obs, l.id]));
-  return { nombre: 'Pozos y bombas', filas };
+      num(l.valores.horas), num(l.valores.voltios), num(l.valores.amperios), num(l.valores.nivelDinamico), l.obs, l.operador, l.id]));
+  return { nombre: 'Pozos', filas };
 }
 
-/* Planta de tratamiento: control operacional y calidad */
+/* Planta de tratamiento */
 function hojaPTAP(lecturas) {
   const filas = [
-    ['PLANTA DE TRATAMIENTO — CONTROL OPERACIONAL Y CALIDAD DE AGUA'],
-    ['PUNTO', 'FECHA', 'HORA', 'Q ING (l/s)', 'P ING (bar)', 'T° ING', 'TURB ING (NTU)', 'TURB SAL (NTU)',
-      'CLORO (ppm)', 'pH SAL', 'TQ CRUDA (%)', 'TQ TRATADA (%)', 'Q SAL (l/s)', 'HORÓMETRO', 'OBSERVACIONES', 'ID REGISTRO']
+    ['LECTURAS DE LA PLANTA DE TRATAMIENTO'],
+    ['PUNTO', 'FECHA', 'HORA', 'CAUDAL DE INGRESO (l/s)', 'TURBIDEZ DE INGRESO (NTU)', 'TURBIDEZ DE SALIDA (NTU)',
+      'CLORO RESIDUAL (mg/L)', 'pH DE SALIDA', 'NIVEL DEL TANQUE (%)', 'HORÓMETRO (h)', 'OBSERVACIONES', 'OPERADOR', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'ptap').forEach(l => {
     const v = l.valores;
-    filas.push([l.punto, l.fecha, l.hora, num(v.caudalIngreso), num(v.presionIngreso), num(v.tempIngreso),
-      num(v.turbidezIngreso), num(v.turbidezSalida), num(v.cloroSalida), num(v.phSalida),
-      num(v.nivelTanqueCruda), num(v.nivelTanqueTratada), num(v.caudalSalida), num(v.horometro), l.obs, l.id]);
+    filas.push([l.punto, l.fecha, l.hora, num(v.caudalIngreso), num(v.turbidezIngreso), num(v.turbidezSalida),
+      num(v.cloroSalida), num(v.phSalida), num(v.nivelTanque), num(v.horometro), l.obs, l.operador, l.id]);
   });
   return { nombre: 'Planta de tratamiento', filas };
 }
 
-/* Aforos + multiparámetro, y reglas / meteorología */
+/* Aforos y calidad de agua */
 function hojaAforos(lecturas) {
   const filas = [
-    ['AFORO Y MONITOREO DE CALIDAD DE CUERPOS DE AGUA'],
-    ['PUNTO', 'FECHA', 'HORA', 'ANCHO (m)', 'N° SECC.', 'CAUDAL (l/s)', 'REGLA INI', 'REGLA FIN',
-      'pH', 'CE (µS/cm)', 'OD (mg/L)', 'T (°C)', 'TURB (NTU)', 'GPS', 'OBSERVACIONES', 'ID REGISTRO']
+    ['AFOROS Y CALIDAD DE AGUA'],
+    ['PUNTO', 'FECHA', 'HORA', 'ANCHO (m)', 'N° DE SECCIONES', 'CAUDAL (l/s)', 'REGLA INICIAL (cm)', 'REGLA FINAL (cm)',
+      'pH', 'CONDUCTIVIDAD (µS/cm)', 'OXÍGENO DISUELTO (mg/L)', 'TEMPERATURA (°C)', 'TURBIDEZ (NTU)', 'GPS', 'OBSERVACIONES', 'OPERADOR', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'aforo').forEach(l => {
     const v = l.valores;
     filas.push([l.punto, l.fecha, l.hora, num(v.anchoCauce), num(v.nSecciones), num(v.caudal),
       num(v.reglaInicio), num(v.reglaFin), num(v.ph), num(v.ce), num(v.od), num(v.temp), num(v.turbidez),
-      l.gps ? `${l.gps.lat.toFixed(5)}, ${l.gps.lon.toFixed(5)}` : '', l.obs, l.id]);
+      l.gps ? `${l.gps.lat.toFixed(5)}, ${l.gps.lon.toFixed(5)}` : '', l.obs, l.operador, l.id]);
   });
   return { nombre: 'Aforos y calidad', filas };
 }
 
+/* Reservorios (reglas) y meteorología comparten hoja */
 function hojaReglasMeteo(lecturas) {
   const filas = [
-    ['NIVELES DE RESERVORIO / REGLAS Y METEOROLOGÍA'],
-    ['PUNTO', 'TIPO', 'FECHA', 'HORA', 'REGLA 06:00', 'REGLA 12:00', 'REGLA 18:00', 'NIVEL',
-      'PRECIPIT. (mm)', 'EVAPOR. (mm)', 'T MÁX', 'T MÍN', 'OBSERVACIONES', 'ID REGISTRO']
+    ['RESERVORIOS Y METEOROLOGÍA'],
+    ['PUNTO', 'TIPO', 'FECHA', 'HORA', 'REGLA (m)', 'PRECIPITACIÓN (mm)', 'EVAPORACIÓN (mm)', 'T° MÁXIMA', 'T° MÍNIMA',
+      'OBSERVACIONES', 'OPERADOR', 'ID REGISTRO']
   ];
   lecturas.filter(l => l.tipo === 'regla' || l.tipo === 'meteo').forEach(l => {
     const v = l.valores;
-    filas.push([l.punto, l.tipo, l.fecha, l.hora, num(v.regla6am), num(v.regla12m), num(v.regla6pm), num(v.nivel),
-      num(v.precipitacion), num(v.evaporacion), num(v.tempMax), num(v.tempMin), l.obs, l.id]);
+    filas.push([l.punto, l.tipo, l.fecha, l.hora, num(v.regla),
+      num(v.precipitacion), num(v.evaporacion), num(v.tempMax), num(v.tempMin), l.obs, l.operador, l.id]);
   });
-  return { nombre: 'Reglas y meteorologia', filas };
+  return { nombre: 'Reservorios y meteorologia', filas };
 }
 
 /* Hoja de trazabilidad: lo que pide una auditoría ISO cuando pregunta
@@ -256,17 +256,28 @@ function libroCompleto(lecturas, jornadas) {
   return construirXLSX(hojas);
 }
 
-/* CSV plano para carga directa a una base de datos o a otro sistema */
+/* CSV plano para carga directa a una base de datos o a otro sistema.
+   Una columna por cada campo medido que aparezca en las lecturas exportadas.
+   Un texto que empieza con = + - @ se prefija con ' para que una hoja de
+   cálculo no lo ejecute como fórmula. */
 function csvPlano(lecturas) {
-  const cab = ['id', 'unidad', 'ruta', 'punto', 'tipo', 'fecha', 'hora', 'acumulado', 'instantaneo',
-    'nivel', 'caudal', 'volumen', 'horas', 'observacion', 'operador', 'huella'];
-  const q = v => (v === null || v === undefined) ? '' : `"${String(v).replace(/"/g, '""')}"`;
-  const filas = lecturas.filter(l => !String(l.estado).startsWith('anulada')).map(l => [
+  const vivas = lecturas.filter(l => !String(l.estado).startsWith('anulada'));
+  const campos = [];
+  vivas.forEach(l => Object.keys(l.valores || {}).forEach(k => { if (!campos.includes(k)) campos.push(k); }));
+  const cab = ['id', 'unidad', 'ruta', 'punto', 'tipo', 'fecha', 'hora', ...campos,
+    'no_medido', 'observacion', 'operador', 'estado', 'huella'];
+  const q = v => {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number') return String(v);
+    const t = /^[=+\-@\t\r]/.test(String(v)) ? "'" + v : String(v);
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+  const filas = vivas.map(l => [
     l.id, l.unidad, l.rutaId, l.punto, l.tipo, l.fecha, l.hora,
-    l.valores.acumulado, l.valores.instantaneo, l.valores.nivel, l.valores.caudal,
-    l.valores.volumen, l.valores.horas, l.obs, l.operador, l.huella
+    ...campos.map(k => (l.valores || {})[k]),
+    l.noMedido, l.obs, l.operador, l.estado, l.huella
   ].map(q).join(','));
-  return '﻿' + cab.join(',') + '\n' + filas.join('\n');
+  return '\uFEFF' + cab.join(',') + '\n' + filas.join('\n');
 }
 
 window.XLS = { construirXLSX, libroCompleto, csvPlano, zip, crc32 };

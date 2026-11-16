@@ -7,7 +7,7 @@ const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const nf = n => (n == null || n === '' || !Number.isFinite(Number(n))) ? '—'
   : Number(n).toLocaleString('es-PE', { maximumFractionDigits: 3 });
-const fFecha = f => { const [a, m, d] = String(f).split('-'); return `${d}/${m}/${a}`; };
+const fFecha = f => { const [a, m, d] = String(f).split('-'); return esc(`${d}/${m}/${a}`); };
 
 const estado = { cfg: null, jornada: null, ruta: null, puntos: [], lecturas: [], filtro: '', capturaAvisos: [], foto: null, gps: null };
 
@@ -35,6 +35,7 @@ async function iniciar() {
 
   await enrutar();
   pintarEstadoRed();
+  sincronizarAhora(true);                               // al abrir: envía lo que quedó en cola
   setInterval(() => sincronizarAhora(true), 120000);   // reintento silencioso cada 2 min
 }
 
@@ -169,7 +170,7 @@ async function vIniciar(rutaId) {
       <label>Condición del clima</label>
       <select id="selClima">
         <option>Despejado</option><option>Nublado</option><option>Lluvia ligera</option>
-        <option>Nevada / granizo</option><option>Neblina</option>
+        <option>Lluvia intensa / granizo</option><option>Neblina</option>
       </select>
       <h3 class="sec">Verificaciones</h3>
       <div id="checks">
@@ -248,7 +249,7 @@ async function vRuta() {
         const cls = !l ? 'pendiente' : (l.noMedido ? 'omitido' : ((l.avisos || []).some(a => a.nivel !== 'verde') ? 'alerta' : 'hecho'));
         const det = !l ? (p.grupo || CATALOGO.tipos[p.tipo].etiqueta)
           : (l.noMedido ? 'No medido: ' + esc(l.noMedido)
-            : `${l.hora} · ${resumenValores(p, l.valores)}`);
+            : `${esc(l.hora)} · ${resumenValores(p, l.valores)}`);
         return `<li class="item ${cls}" onclick="ir('captura/${encodeURIComponent(p.id)}')">
             <div class="txt"><div class="nom">${esc(p.nombre)}</div><div class="det">${det}</div></div>
             <span class="est">${!l ? 'pendiente' : (l.noMedido ? 'omitido' : '✓')}</span>
@@ -283,7 +284,7 @@ async function vCaptura(puntoId) {
       <p>${esc(tipo.etiqueta)}${punto.grupo ? ' · ' + esc(punto.grupo) : ''}${punto.formato ? ' · ' + esc(punto.formato) : ''}</p>
       ${punto.nota ? `<div class="aviso info">⚠ ${esc(punto.nota)}</div>` : ''}
       ${ultimo ? `<div class="aviso info">Última lectura: <b>${resumenValores(punto, ultimo.valores)}</b><br>
-          ${fFecha(ultimo.fecha)} ${ultimo.hora}${ultimo.deltaDiaProm ? ` · promedio histórico ${nf(ultimo.deltaDiaProm.toFixed(1))}/día` : ''}</div>`
+          ${fFecha(ultimo.fecha)} ${esc(ultimo.hora)}${ultimo.deltaDiaProm ? ` · promedio histórico ${nf(ultimo.deltaDiaProm.toFixed(1))}/día` : ''}</div>`
         : '<div class="aviso info">Primera lectura registrada para este punto en el equipo.</div>'}
       ${yaHecha ? '<div class="aviso ambar">Este punto ya fue registrado en el recorrido. Si guarda otra vez, quedará como corrección con trazabilidad.</div>' : ''}
 
@@ -389,7 +390,7 @@ async function guardarCaptura(puntoId) {
     const soloMotivo = rojos.every(a => a.requiereMotivo);
     if (!soloMotivo) { await revalidar(puntoId); toast('Corrija los valores marcados en rojo.'); return; }
     if (!obs) { await revalidar(puntoId); toast('Explique en Observaciones por qué el acumulado bajó (reinicio, cambio de equipo…).'); return; }
-    if (!confirm('El valor contradice la lectura anterior. Se guardará con la observación registrada y quedará marcado para revisión del hidrólogo. ¿Continuar?')) return;
+    if (!confirm('El valor contradice la lectura anterior. Se guardará con la observación registrada y quedará marcada para revisión del supervisor. ¿Continuar?')) return;
   }
   if (ambares.length && estado.cfg.fotoObligatoriaEnAlerta && !estado.foto && !obs) {
     toast('Lectura fuera de rango: agregue una foto del display o una observación.');
@@ -404,7 +405,7 @@ async function guardarCaptura(puntoId) {
     jornadaId: estado.jornada ? estado.jornada.id : null,
     rutaId: punto.ruta, puntoId: punto.id, punto: punto.nombre, tipo: punto.tipo,
     unidad: punto.unidad, fecha: $('#inFecha').value, hora: $('#inHora').value,
-    valores, obs, estadoEquipo: $('#inEstado').value,
+    valores, obs, estadoEquipo: $('#inEstado').value, noMedido: null,
     anomalia: $('#inEstado').value !== 'operativo' ? $('#inEstado').selectedOptions[0].text : null,
     foto: estado.foto, gps: estado.gps, avisos
   };
@@ -431,24 +432,31 @@ async function siguientePunto(punto) {
 async function noMedido(puntoId) {
   const punto = (await DB.todos(DB.S.CATALOGO)).find(p => p.id === puntoId);
   const motivos = ['Sin acceso al punto', 'Equipo inoperativo / display ilegible', 'Tormenta eléctrica o clima adverso',
-    'Cisterna o equipo pesado abasteciendo', 'Punto fuera de servicio', 'Otro'];
+    'Punto ocupado por otra operación', 'Punto fuera de servicio', 'Otro'];
   const n = prompt('Motivo por el que no se midió:\n' + motivos.map((m, i) => `${i + 1}. ${m}`).join('\n'), '1');
   if (n === null) return;
   const idx = parseInt(n, 10) - 1;
   let motivo = motivos[idx] || n;
   if (motivo === 'Otro') { motivo = prompt('Describa el motivo:', '') || 'Otro'; }
-  await DB.guardarLectura({
+  const datos = {
     jornadaId: estado.jornada ? estado.jornada.id : null,
     rutaId: punto.ruta, puntoId: punto.id, punto: punto.nombre, tipo: punto.tipo, unidad: punto.unidad,
+    fecha: DB.hoyISO(), hora: DB.horaHM(), estadoEquipo: 'operativo', anomalia: null,
     valores: {}, noMedido: motivo, obs: 'No medido: ' + motivo, gps: estado.gps, foto: estado.foto, avisos: []
-  });
+  };
+  // si el punto ya tenía lectura en este recorrido, se corrige (no quedan dos vivas)
+  const anterior = estado.jornada
+    ? (await DB.lecturasDeJornada(estado.jornada.id)).find(l => l.puntoId === puntoId && !String(l.estado).startsWith('anulada'))
+    : null;
+  if (anterior) await DB.corregirLectura(anterior.id, datos, 'marcado como no medido');
+  else await DB.guardarLectura(datos);
   toast('Registrado como no medido.');
   await siguientePunto(punto);
 }
 
 /* ============== CAPTURA POR FOTO DE HOJA / PANEL Y TRANSCRIPCIÓN ==========
-   Pensado para hojas largas (decenas de piezómetros, o bombas con siete
-   campos cada una): en campo se fotografía, en gabinete se digita.
+   Pensado para hojas largas, con muchos puntos o muchos campos por punto:
+   en campo se fotografía, en gabinete se digita.
    ========================================================================== */
 
 let _fotosHoja = [];      // fotos de la captura en curso (aún no guardada)
@@ -561,8 +569,8 @@ async function vHojas() {
         const ruta = CATALOGO.rutas.find(r => r.id === h.rutaId) || {};
         return `<li class="item ${h.estado === 'transcrita' ? 'hecho' : 'alerta'}" onclick="ir('hoja/${h.id}')">
           <div class="txt"><div class="nom">${esc(ruta.nombre || h.rutaId)}</div>
-          <div class="det">${fFecha(h.fecha)} ${h.hora} · ${h.puntoIds.length} puntos · ${h.fotoIds.length} foto(s) · ${esc(h.operador || '')}</div></div>
-          <span class="est">${h.estado === 'transcrita' ? '✓' : (h.faltan != null ? 'faltan ' + h.faltan : 'por transcribir')}</span></li>`;
+          <div class="det">${fFecha(h.fecha)} ${esc(h.hora)} · ${h.puntoIds.length} puntos · ${h.fotoIds.length} foto(s) · ${esc(h.operador || '')}</div></div>
+          <span class="est">${h.estado === 'transcrita' ? '✓' : (h.faltan != null ? 'faltan ' + (Number(h.faltan) || 0) : 'por transcribir')}</span></li>`;
       }).join('')}
     </ul>
     ${!hojas.length ? '<p class="vacio">Todavía no hay hojas fotografiadas.</p>' : ''}`;
@@ -589,7 +597,7 @@ async function vHoja(id) {
     <div class="tarjeta">
       <h2>Transcripción de hoja</h2>
       <p>${esc(ruta.nombre || hoja.rutaId)}${ruta.formato ? ' · ' + esc(ruta.formato) : ''}</p>
-      <p>${fFecha(hoja.fecha)} ${hoja.hora} · ${esc(hoja.operador || '')} · ${hoja.puntoIds.length} puntos</p>
+      <p>${fFecha(hoja.fecha)} ${esc(hoja.hora)} · ${esc(hoja.operador || '')} · ${hoja.puntoIds.length} puntos</p>
       ${hoja.obs ? `<div class="aviso info">${esc(hoja.obs)}</div>` : ''}
       ${OCR.disponible() ? `<button class="secundario" onclick="detectarNumeros()">Detectar números en la foto</button><div id="chipsOCR"></div>` : ''}
     </div>
@@ -730,7 +738,7 @@ async function vBandeja(filtro) {
           : l.estado === 'enviado' ? 'hecho' : (l.avisos || []).length ? 'alerta' : 'pendiente';
         return `<li class="item ${cls}" onclick="ir('detalle/${l.id}')">
           <div class="txt"><div class="nom">${esc(l.punto)}</div>
-          <div class="det">${fFecha(l.fecha)} ${l.hora} · ${l.noMedido ? 'no medido' : resumenValoresTipo(l)}</div></div>
+          <div class="det">${fFecha(l.fecha)} ${esc(l.hora)} · ${l.noMedido ? 'no medido' : resumenValoresTipo(l)}</div></div>
           <span class="est">${esc(l.estado)}</span></li>`;
       }).join('')}
     </ul>
@@ -750,8 +758,8 @@ async function vDetalle(id) {
   $('#app').innerHTML = `
     <div class="tarjeta">
       <h2>${esc(l.punto)}</h2>
-      <p>${fFecha(l.fecha)} ${l.hora} · ${esc(l.operador || '')} · ${esc(l.empresa || '')}</p>
-      <p>Estado: <b>${esc(l.estado)}</b>${l.intentos ? ` · ${l.intentos} intento(s) de envío` : ''}${l.ultimoError ? ' · ' + esc(l.ultimoError) : ''}</p>
+      <p>${fFecha(l.fecha)} ${esc(l.hora)} · ${esc(l.operador || '')} · ${esc(l.empresa || '')}</p>
+      <p>Estado: <b>${esc(l.estado)}</b>${l.intentos ? ` · ${Number(l.intentos) || 0} intento(s) de envío` : ''}${l.ultimoError ? ' · ' + esc(l.ultimoError) : ''}</p>
       <h3 class="sec">Valores</h3>
       ${t.campos.filter(c => l.valores[c.k] != null).map(c => `<p><b>${esc(c.label)}:</b> ${nf(l.valores[c.k])} ${esc(c.unidad)}</p>`).join('') || '<p>Sin valores (no medido).</p>'}
       ${l.noMedido ? `<div class="aviso ambar">No medido: ${esc(l.noMedido)}</div>` : ''}
@@ -801,7 +809,7 @@ async function vExportar() {
 
 async function seleccion(rango) {
   const ls = await DB.todos(DB.S.LECTURAS);
-  if (rango === 'jornada' && estado.jornada) return ls.filter(l => l.jornadaId === estado.jornada.id);
+  if (rango === 'jornada') return estado.jornada ? ls.filter(l => l.jornadaId === estado.jornada.id) : [];
   if (rango === 'hoy') return ls.filter(l => l.fecha === DB.hoyISO());
   if (rango === 'mes') return ls.filter(l => String(l.fecha).startsWith(DB.hoyISO().slice(0, 7)));
   if (rango === 'pendientes') return ls.filter(l => l.estado === 'pendiente' || l.estado === 'error');
@@ -895,7 +903,8 @@ async function vAjustes() {
       <p>Almacenamiento ${persistente ? 'persistente (protegido)' : 'no persistente'}${alm ? ` · ${(alm.usado / 1048576).toFixed(1)} MB usados` : ''}</p>
       <p>Catálogo ${esc(CATALOGO.version)} · ${CATALOGO.puntos.length} puntos</p>
       <button class="secundario" onclick="recargarCatalogo()">Actualizar catálogo de puntos</button>
-      <button class="peligro" style="margin-top:8px" onclick="limpiarEnviados()">Liberar espacio: borrar fotos ya enviadas</button>
+      <button class="peligro" style="margin-top:8px" onclick="limpiarEnviados()">Liberar espacio: borrar fotos ya respaldadas</button>
+      <p class="ayuda">Las fotos no viajan al servidor. Solo se borran las que ya están en un respaldo .json exportado y cuyas lecturas se enviaron.</p>
     </div>
     <small class="pie">Registro de campo ${APP_VERSION}</small>`;
   revisarOffline();
@@ -958,9 +967,10 @@ async function recargarCatalogo() {
 }
 
 async function limpiarEnviados() {
-  if (!confirm('Se borrarán solo las fotos de hojas ya transcritas y de lecturas ya enviadas al servidor. ¿Continuar?')) return;
-  const n = await DB.liberarFotos();
-  toast(`${n} fotografía(s) liberadas del equipo.`);
+  if (!confirm('Se borrarán solo las fotos incluidas en el último respaldo .json exportado y cuyas lecturas ya se enviaron. ¿Continuar?')) return;
+  const r = await DB.liberarFotos();
+  toast(r.motivo === 'sin-respaldo' ? 'Primero exporte un respaldo (.json): las fotos solo se borran si ya están respaldadas.'
+    : `${r.n} fotografía(s) liberadas del equipo.`);
 }
 
 /* --------------------------------------------------------- SINCRONIZAR --- */

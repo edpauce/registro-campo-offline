@@ -8,9 +8,9 @@
    automático es confiable al 100 %, y un dato de balance hídrico mal leído
    cuesta más que el minuto que ahorra.
 
-   Usa el lector de texto que ya trae el propio dispositivo (Shape Detection
-   API, presente en Chrome de Android). Si el equipo no lo tiene, la función
-   simplemente no se ofrece: no se descarga nada de internet.
+   Usa el lector de texto del propio navegador (TextDetector, de la Shape
+   Detection API), que hoy en Chrome está detrás de una opción experimental.
+   Si el navegador no lo expone, el botón no aparece: no se descarga nada.
    ========================================================================== */
 
 const OCR = {

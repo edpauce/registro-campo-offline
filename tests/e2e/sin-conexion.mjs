@@ -169,6 +169,34 @@ try {
   ok(Object.values(partes).every(e => e.crc === zlib.crc32(e.datos)), 'el CRC de cada parte del ZIP es correcto');
   const hojas = [...partes['xl/workbook.xml'].datos.toString('utf8').matchAll(/<sheet name="([^"]+)"/g)].map(m => m[1]);
   ok(hojas.join(',') === 'Caudalimetros,Trazabilidad', 'hojas: ' + hojas.join(', '));
+
+  console.log('6. Respaldo malicioso');
+  const r = await ev(`DB.importarRespaldo({ formato: DB.FORMATO_RESPALDO, lecturas: [{ id: 'x1', fecha: '2026-01-01',
+      hora: '<img src=x onerror="window.__xss=1">', estado: 'pendiente', tipo: 'caudalometro', puntoId: 'p', valores: {} }] })
+    .then(() => 'aceptado', e => 'rechazado: ' + e.message)`);
+  ok(r.startsWith('rechazado'), 'un respaldo con HTML en sus campos se rechaza entero');
+  await ev(`location.hash = '#/bandeja'`); await esperar(300);
+  ok(await ev('window.__xss === undefined') && await ev(`DB.todos(DB.S.LECTURAS).then(l => l.length === 2)`), 'no se ejecutó nada ni se guardó nada');
+
+  console.log('7. Vuelve la señal: envío al servidor');
+  const recibidos = [];
+  const api = http.createServer((req, res) => {
+    const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, X-API-Key', 'Access-Control-Allow-Methods': 'POST' };
+    if (req.method === 'OPTIONS') { res.writeHead(204, cors).end(); return; }
+    let cuerpo = ''; req.on('data', d => { cuerpo += d; });
+    req.on('end', () => { recibidos.push(JSON.parse(cuerpo)); setTimeout(() => res.writeHead(200, cors).end('{}'), 300); });
+  });
+  await new Promise(r => api.listen(0, '127.0.0.1', r));
+  try {
+    await cdp('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await ev(`DB.guardarConfig('endpoint', 'http://127.0.0.1:${api.address().port}/api').then(() => DB.cargarConfig()).then(c => { estado.cfg = c; })`);
+    const [r1, r2] = await ev(`Promise.all([DB.sincronizar(), DB.sincronizar()])`);
+    ok(r1 && r2 && r1.enviados === 1, 'dos sincronizaciones simultáneas comparten una sola corrida');
+    ok(recibidos.length === 1, 'el servidor recibió exactamente 1 envío (sin duplicados)');
+    ok(recibidos[0].foto === undefined && typeof recibidos[0].huella === 'string', 'el envío lleva id y huella, no la foto');
+    const est = await ev(`DB.todos(DB.S.LECTURAS).then(l => l.map(x => x.estado).sort().join(','))`);
+    ok(est === 'anulada,enviado', 'la lectura vigente queda enviada y la anulada sigue anulada');
+  } finally { api.close(); }
 } catch (e) {
   console.error(e.message); codigo = 1;
 } finally {

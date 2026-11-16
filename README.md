@@ -46,19 +46,27 @@ guardar.
   antes de cualquier intento de envío, y queda en una cola.
 - **Valida en el punto, no a fin de mes.** Un contador acumulado que retrocede bloquea el
   guardado hasta justificarlo; un consumo diario lejos del histórico (±40 % por defecto)
-  pide foto u observación; un acumulado que no varía avisa de equipo trabado; cada
-  parámetro tiene límites físicos y rangos operativos (pH, cloro, turbidez…).
+  pide foto u observación; un acumulado que no varía avisa de equipo trabado; un nivel que
+  salta frente a la lectura anterior pide confirmar; la mayoría de los campos tiene
+  límites físicos y los de calidad (pH, cloro, turbidez), rango operativo.
 - **Las correcciones no sobrescriben.** Crean una versión nueva enlazada y dejan la
   anterior anulada y visible.
-- **Sigue el procedimiento.** Chequeo previo de seguridad firmado antes del recorrido y
-  puntos en el orden del procedimiento (en un tanque, la llegada antes que las salidas).
+- **Sigue el procedimiento.** Chequeo previo de seguridad, registrado con nombre y hora,
+  antes del recorrido; si falta una verificación, el recorrido queda marcado «con
+  observaciones». Los puntos salen en el orden del procedimiento (en un tanque, la llegada
+  antes que las salidas).
 - **Foto en campo, digitación en gabinete** para hojas largas: se fotografía la hoja o el
   panel y se transcribe después con la foto fija en pantalla. Un lector de números
-  opcional (`app/js/ocr.js`) propone valores **y obliga a confirmarlos**: sobre escritura
-  a mano ningún lector es confiable.
+  opcional (`app/js/ocr.js`) **solo propone**: el usuario coloca cada valor tocándolo y lo
+  verifica contra la foto; nada se llena solo, porque sobre escritura a mano ningún lector
+  es confiable.
 - **Excel generado en el teléfono** (`app/js/xlsx.js`), sin librerías: ZIP y OOXML
-  escritos a mano, una hoja por tipo de registro más una hoja de trazabilidad. También
-  CSV y respaldo `.json` para traspasar un turno por WhatsApp o USB.
+  escritos a mano, una hoja por tipo de registro (reservorios y meteorología comparten
+  una) más una hoja de trazabilidad. También CSV, con una columna por campo medido, y
+  respaldo `.json` para traspasar un turno por WhatsApp o USB.
+- **El respaldo es dato externo.** Al importarlo se valida su forma completa (ids, fechas,
+  horas, números, fotos) y, si algo no calza, se rechaza entero. No lleva la clave de API
+  ni el DNI del operador, y los recorridos que trae se importan cerrados.
 - **Envío idempotente** cuando hay servidor: cada lectura viaja con su id y su huella;
   un reenvío por corte de señal no duplica.
 
@@ -70,8 +78,10 @@ guardar.
 - **Sin dependencias.** Lo que corre en un celular sin señal durante años conviene que
   no dependa de un CDN ni de una cadena de compilación.
 - **Sin envío en segundo plano, a propósito.** iOS no permite Background Sync. La app
-  reintenta con la app abierta: al volver la señal, cada 2 minutos y al reabrirla. No
-  promete lo que el teléfono del operador no va a hacer.
+  reintenta con la app abierta: al abrirla, al volver la señal y cada 2 minutos, sin
+  rendirse tras varios fallos. No promete lo que el teléfono del operador no va a hacer.
+- **Las fotos no se borran por enviar.** Las fotos no viajan al servidor; «Liberar
+  espacio» solo borra las que ya están dentro de un respaldo `.json` exportado.
 - **El lector automático es ayuda, no reemplazo.** Un dato de balance mal leído cuesta
   más que el minuto que ahorra.
 - **La trazabilidad es parte del dato.** Quién, cuándo, dónde, con qué equipo y qué pasó
@@ -79,7 +89,7 @@ guardar.
 
 ## Probarla
 
-Requiere Python 3 (para servirla) y Node 22 o superior (solo para los tests).
+Requiere Python 3 (para servirla) y Node 22.2 o superior (solo para los tests).
 
 ```bash
 npm start            # sirve app/ en http://127.0.0.1:8000
@@ -97,8 +107,10 @@ npm run test:e2e     # punta a punta en Chrome headless, sin conexión
 La prueba de punta a punta (`tests/e2e/sin-conexion.mjs`) usa Chrome por el protocolo
 DevTools, sin Puppeteer ni Playwright: carga la app, **corta la red y apaga el
 servidor**, recarga, registra lecturas, comprueba que un acumulado que retrocede no se
-guarda sin motivo y exporta un Excel cuyo ZIP verifica parte por parte. Corre en cada
-push en GitHub Actions.
+guarda sin motivo, exporta un Excel cuyo ZIP verifica parte por parte, intenta importar
+un respaldo con HTML malicioso y, al volver la red, comprueba que dos sincronizaciones
+simultáneas no duplican el envío. Corre en GitHub Actions en cada push a `main` y en cada
+pull request.
 
 Para usarla en un celular hay que publicarla con **HTTPS** (es lo único que exige) y,
 en iPhone, instalarla con *Compartir ▸ Añadir a pantalla de inicio*, que es lo que
@@ -125,7 +137,8 @@ tests/                    node --test + prueba e2e en Chrome headless
 ## Adaptarla a otra operación
 
 Se reemplaza `app/js/catalogo.js` por las rutas y puntos reales, en el orden del
-procedimiento, y se sube su `version`. Cada tipo de medición declara sus campos con
+procedimiento, y se cambia su `version`: al abrir la app, cada equipo reemplaza su
+catálogo por el nuevo (las lecturas ya tomadas no se tocan). Cada tipo de medición declara sus campos con
 límites físicos (`min`/`max`), rango operativo (`alerta`), si es un contador que no
 retrocede (`monotono`) y el salto máximo esperado entre lecturas (`saltoMax`). Si hay
 servidor, en *Ajustes ▸ Servidor* se indica un endpoint que reciba un `POST` con JSON por
@@ -146,8 +159,9 @@ seguridad previo, y una salida que ya tiene la forma del registro que la operaci
 - No incluye servidor: el envío está implementado y es idempotente, pero la salida
   probada es Excel, CSV y respaldo `.json`.
 - Sin envío con la app cerrada (ver decisiones).
-- El lector de números depende de que el navegador exponga el detector de texto del
-  sistema; donde no existe, el botón no aparece.
+- El lector de números usa `TextDetector`, que hoy en Chrome está detrás de una opción
+  experimental: en la práctica el botón casi nunca aparece y se digita a mano.
+- Las fotos se guardan en el equipo y en el respaldo, no en el servidor.
 - Verificado en Chrome de escritorio (también headless). No se ha probado en esta versión
   instalada en un celular físico.
 

@@ -8,7 +8,7 @@
    ========================================================================== */
 
 const DB_NOMBRE = 'registro-campo';
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 
 const S = {
   LECTURAS: 'lecturas',     // cada medición individual
@@ -113,16 +113,22 @@ async function cargarConfig() {
 const guardarConfig = (k, v) => put(S.CONFIG, { k, v });
 
 /* ================================ CATÁLOGO ================================= */
+/* Se vuelve a sembrar cuando cambia `version` en catalogo.js: publicar una
+   versión nueva actualiza los puntos de todos los equipos al abrir la app.
+   Las lecturas guardan el nombre del punto, así que retirar uno no las afecta. */
 async function sembrarCatalogo(force = false) {
   const actual = await todos(S.CATALOGO);
-  if (actual.length && !force) return actual;
+  const sembrada = await get(S.CONFIG, 'catalogoVersion');
+  if (actual.length && !force && sembrada && sembrada.v === window.CATALOGO.version) return actual;
   const db = await abrir();
   await new Promise((res, rej) => {
     const t = db.transaction(S.CATALOGO, 'readwrite');
     const st = t.objectStore(S.CATALOGO);
+    st.clear();
     window.CATALOGO.puntos.forEach(p => st.put(p));
     t.oncomplete = res; t.onerror = () => rej(t.error);
   });
+  await guardarConfig('catalogoVersion', window.CATALOGO.version);
   await bitacora('catalogo:sembrado', { version: window.CATALOGO.version, puntos: window.CATALOGO.puntos.length });
   return todos(S.CATALOGO);
 }
@@ -308,14 +314,29 @@ async function actualizarUltimo(reg) {
 const ultimaDe = (puntoId) => get(S.ULTIMOS, puntoId);
 const lecturasDeJornada = (jid) => porIndice(S.LECTURAS, 'jornadaId', jid);
 const pendientes = () => porIndice(S.LECTURAS, 'estado', 'pendiente');
+const conError = () => porIndice(S.LECTURAS, 'estado', 'error');
 
 /* ============================ COLA DE ENVÍO ================================
    Idempotente: el servidor recibe siempre el mismo id + huella, así que un
    reenvío por timeout NUNCA duplica un registro.
+   - Una sola sincronización a la vez: el evento 'online', el reintento cada
+     2 minutos y cada guardado pueden coincidir.
+   - Las lecturas en 'error' (8 fallos o más) se siguen reintentando: el
+     estado solo avisa que algo anda mal con el servidor.
+   - Tras cada envío se relee la lectura: si mientras viajaba se corrigió (y
+     quedó anulada), no se la revive como 'enviado'.
    ========================================================================== */
-async function sincronizar(reportar = () => {}) {
+const ESPERA_ENVIO_MS = 30000;
+let _sincronizando = null;
+
+function sincronizar(reportar = () => {}) {
+  if (!_sincronizando) _sincronizando = _sincronizar(reportar).finally(() => { _sincronizando = null; });
+  return _sincronizando;
+}
+
+async function _sincronizar(reportar) {
   const cfg = await cargarConfig();
-  const cola = await pendientes();
+  const cola = (await pendientes()).concat(await conError());
   if (!cola.length) return { enviados: 0, fallidos: 0, total: 0 };
   if (!navigator.onLine || !cfg.endpoint) {
     reportar({ tipo: 'sin-red', total: cola.length });
@@ -323,31 +344,44 @@ async function sincronizar(reportar = () => {}) {
   }
   let enviados = 0, fallidos = 0;
   for (const reg of cola) {
+    let ok = false, error = null;
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), ESPERA_ENVIO_MS);
     try {
       reportar({ tipo: 'enviando', id: reg.id, punto: reg.punto });
       const r = await fetch(cfg.endpoint, {
-        method: 'POST',
+        method: 'POST', signal: corte.signal,
         headers: { 'Content-Type': 'application/json', ...(cfg.apiKey ? { 'X-API-Key': cfg.apiKey } : {}) },
         body: JSON.stringify({ ...reg, foto: undefined, fotoAdjunta: !!reg.foto })
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      reg.estado = 'enviado'; reg.enviadoEl = new Date().toISOString(); reg.ultimoError = null;
-      enviados++;
+      ok = true;
     } catch (e) {
-      reg.intentos = (reg.intentos || 0) + 1;
-      reg.ultimoError = String(e.message || e);
-      if (reg.intentos >= 8) reg.estado = 'error';
+      error = corte.signal.aborted ? 'sin respuesta en ' + ESPERA_ENVIO_MS / 1000 + ' s' : String(e.message || e);
+    } finally {
+      clearTimeout(reloj);
+    }
+    const actual = await get(S.LECTURAS, reg.id);          // relee: pudo cambiar mientras viajaba
+    if (!actual) continue;
+    if (ok) {
+      actual.enviadoEl = new Date().toISOString(); actual.ultimoError = null;
+      actual.estado = String(actual.estado).startsWith('anulada') ? 'anulada-enviada' : 'enviado';
+      enviados++;
+    } else {
+      actual.intentos = (actual.intentos || 0) + 1;
+      actual.ultimoError = error;
+      if (actual.estado === 'pendiente' && actual.intentos >= 8) actual.estado = 'error';
       fallidos++;
     }
-    await put(S.LECTURAS, reg);
+    await put(S.LECTURAS, actual);
   }
   await bitacora('sync', { enviados, fallidos });
   return { enviados, fallidos, total: cola.length };
 }
 
 /* ================ CAPTURA POR FOTO DE HOJA / PANEL ==========================
-   Para rutas con muchos puntos (decenas de piezómetros, o bombas con siete
-   campos cada una) tipear en campo es tiempo perdido. El operador
+   Para rutas con muchos puntos, o con muchos campos por punto, tipear en
+   campo es tiempo perdido. El operador
    fotografía la hoja o el panel —que es lo que ya hace— y la transcripción se
    hace después, con la foto al frente, en el celular o en la PC de oficina.
    La foto se guarda UNA vez y las lecturas la referencian.
@@ -433,52 +467,119 @@ async function transcribirHoja(hojaId, filas) {
 /* ===================== RESPALDO / RELEVO SIN RED ============================
    Cuando no hay ni señal ni red de oficina, el turno se traspasa como archivo
    (WhatsApp, Bluetooth, USB). El paquete es JSON y cada lectura lleva su huella.
+   El archivo viaja por canales abiertos: no lleva la clave de API ni el DNI.
    ========================================================================== */
 const FORMATO_RESPALDO = 'REGISTRO-CAMPO-RESPALDO-1';
 async function exportarRespaldo() {
-  return {
-    formato: FORMATO_RESPALDO, generado: new Date().toISOString(),
+  const generado = new Date().toISOString();
+  const paquete = {
+    formato: FORMATO_RESPALDO, generado,
     dispositivo: await idDispositivo(), appVersion: window.APP_VERSION,
     jornadas: await todos(S.JORNADAS),
     lecturas: await todos(S.LECTURAS),
     hojas: await todos(S.HOJAS),
     fotos: await todos(S.FOTOS),
     ultimos: await todos(S.ULTIMOS),
-    // el respaldo viaja por WhatsApp o USB: la clave de API no sale del equipo
-    config: { ...(await cargarConfig()), apiKey: undefined }
+    config: { ...(await cargarConfig()), apiKey: undefined, dni: undefined }
   };
+  await guardarConfig('ultimoRespaldo', generado);   // habilita liberar fotos ya respaldadas
+  return paquete;
 }
 
-/* Libera espacio sin perder trazabilidad: solo borra fotos de hojas ya
-   transcritas cuyas lecturas están enviadas al servidor. */
+/* Libera espacio sin perder evidencia. Las fotos NO viajan al servidor (solo
+   la marca fotoAdjunta), así que solo se borran las que ya están dentro de un
+   respaldo .json exportado y cuyas lecturas ya se enviaron. */
 async function liberarFotos() {
+  const cfg = await cargarConfig();
+  const corte = cfg.ultimoRespaldo;
+  if (!corte) return { n: 0, motivo: 'sin-respaldo' };
+  const respaldada = x => x && String(x.creado) <= corte;
   const hojas = await todos(S.HOJAS);
   const lecturas = await todos(S.LECTURAS);
+  const enviada = l => l.estado === 'enviado' || l.estado === 'anulada-enviada';
   let n = 0;
   for (const h of hojas) {
-    if (h.estado !== 'transcrita' || !h.fotoIds.length) continue;
-    const suyas = lecturas.filter(l => l.hojaId === h.id);
-    if (!suyas.length || suyas.some(l => l.estado === 'pendiente' || l.estado === 'error')) continue;
+    if (h.estado !== 'transcrita' || !(h.fotoIds || []).length || !respaldada(h)) continue;
+    const suyas = lecturas.filter(l => l.hojaId === h.id && !String(l.estado).startsWith('anulada'));
+    if (!suyas.length || !suyas.every(enviada)) continue;
     for (const fid of h.fotoIds) { await del(S.FOTOS, fid); n++; }
     h.fotoIds = []; h.fotosLiberadas = true;
     await put(S.HOJAS, h);
   }
   for (const l of lecturas) {
-    if (l.estado === 'enviado' && l.foto) { l.foto = null; l.fotoLiberada = true; await put(S.LECTURAS, l); n++; }
+    if (enviada(l) && l.foto && respaldada(l)) { l.foto = null; l.fotoLiberada = true; await put(S.LECTURAS, l); n++; }
   }
-  await bitacora('fotos:liberadas', { n });
-  return n;
+  await bitacora('fotos:liberadas', { n, respaldo: corte });
+  return { n };
+}
+
+/* Un respaldo llega de otro equipo por WhatsApp o USB: es dato externo. Antes
+   de guardar nada se valida su forma completa; lo que no calza se rechaza
+   entero. Los textos se escapan al pintarlos, pero ids, fechas, horas, fotos
+   y números se exigen con formato estricto porque también van en atributos. */
+const RX = {
+  id: /^[A-Za-z0-9_-]{1,64}$/, fecha: /^\d{4}-\d{2}-\d{2}$/, hora: /^\d{2}:\d{2}$/,
+  foto: /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/
+};
+const ESTADOS_LECTURA = ['pendiente', 'enviado', 'error', 'anulada', 'anulada-enviada'];
+
+function validarRespaldo(p) {
+  const err = [];
+  const esObj = x => x && typeof x === 'object' && !Array.isArray(x);
+  const lista = (x, nombre) => { if (x === undefined) return []; if (!Array.isArray(x)) { err.push(nombre + ': no es una lista'); return []; } return x; };
+  const num = (x) => typeof x === 'number' && Number.isFinite(x);
+  const gpsOk = g => g == null || (esObj(g) && num(g.lat) && num(g.lon) && (g.prec == null || num(g.prec)));
+  const texto = x => x == null || typeof x === 'string';
+  if (!esObj(p) || p.formato !== FORMATO_RESPALDO) return ['Archivo de respaldo no reconocido.'];
+
+  lista(p.lecturas, 'lecturas').forEach((l, i) => {
+    const e = m => err.push(`lectura ${i + 1}: ${m}`);
+    if (!esObj(l)) return e('no es un objeto');
+    if (!RX.id.test(l.id)) e('id inválido');
+    if (!RX.fecha.test(l.fecha)) e('fecha inválida');
+    if (!RX.hora.test(l.hora)) e('hora inválida');
+    if (!ESTADOS_LECTURA.includes(l.estado)) e('estado inválido');
+    if (!window.CATALOGO.tipos[l.tipo]) e('tipo desconocido');
+    if (typeof l.puntoId !== 'string' || !RX.id.test(l.puntoId)) e('punto inválido');
+    for (const k of ['jornadaId', 'hojaId', 'fotoId', 'editadoDe']) if (l[k] != null && !RX.id.test(l[k])) e(k + ' inválido');
+    if (l.foto != null && !RX.foto.test(l.foto)) e('foto inválida');
+    if (!esObj(l.valores) || !Object.values(l.valores).every(num)) e('valores no numéricos');
+    if (!gpsOk(l.gps)) e('GPS inválido');
+    if (l.avisos != null && (!Array.isArray(l.avisos) || !l.avisos.every(a => esObj(a) && ['rojo', 'ambar'].includes(a.nivel) && texto(a.msg)))) e('avisos inválidos');
+    for (const k of ['punto', 'obs', 'operador', 'empresa', 'noMedido', 'anomalia', 'huella', 'estadoEquipo', 'creado']) if (!texto(l[k])) e(k + ' no es texto');
+  });
+  lista(p.jornadas, 'jornadas').forEach((j, i) => {
+    if (!esObj(j) || !RX.id.test(j.id) || typeof j.rutaId !== 'string' || !texto(j.operador) || typeof j.inicio !== 'string')
+      err.push(`jornada ${i + 1}: inválida`);
+  });
+  lista(p.hojas, 'hojas').forEach((h, i) => {
+    if (!esObj(h) || !RX.id.test(h.id) || !RX.fecha.test(h.fecha) || !RX.hora.test(h.hora)
+        || !Array.isArray(h.fotoIds) || !h.fotoIds.every(x => RX.id.test(x))
+        || !Array.isArray(h.puntoIds) || !h.puntoIds.every(x => typeof x === 'string' && RX.id.test(x))
+        || !gpsOk(h.gps) || !texto(h.obs) || !texto(h.operador)) err.push(`hoja ${i + 1}: inválida`);
+  });
+  lista(p.fotos, 'fotos').forEach((f, i) => {
+    if (!esObj(f) || !RX.id.test(f.id) || !RX.foto.test(f.dataURL)) err.push(`foto ${i + 1}: inválida`);
+  });
+  return err;
 }
 
 async function importarRespaldo(paquete) {
-  if (!paquete || paquete.formato !== FORMATO_RESPALDO) throw new Error('Archivo de respaldo no reconocido.');
+  const errores = validarRespaldo(paquete);
+  if (errores.length) throw new Error(errores.length === 1 ? errores[0]
+    : `${errores.length} problemas en el archivo; el primero: ${errores[0]}`);
   let nuevas = 0, repetidas = 0;
   for (const l of paquete.lecturas || []) {
     const ex = await get(S.LECTURAS, l.id);
     if (ex) { repetidas++; continue; }
     await put(S.LECTURAS, l); nuevas++;
   }
-  for (const j of paquete.jornadas || []) if (!(await get(S.JORNADAS, j.id))) await put(S.JORNADAS, j);
+  // un recorrido ajeno nunca queda abierto en este equipo: se importa cerrado
+  for (const j of paquete.jornadas || []) {
+    if (await get(S.JORNADAS, j.id)) continue;
+    await put(S.JORNADAS, j.estado === 'abierta'
+      ? { ...j, estado: 'cerrada', fin: j.fin || paquete.generado, notas: 'Cerrada al importar el relevo.' } : j);
+  }
   for (const f of paquete.fotos || []) if (!(await get(S.FOTOS, f.id))) await put(S.FOTOS, f);
   for (const h of paquete.hojas || []) if (!(await get(S.HOJAS, h.id))) await put(S.HOJAS, h);
   await bitacora('respaldo:importado', { nuevas, repetidas, origen: paquete.dispositivo });
@@ -506,6 +607,7 @@ window.DB = {
   cargarConfig, guardarConfig, sembrarCatalogo, puntosDeRuta,
   abrirJornada, cerrarJornada, jornadaAbierta,
   validar, guardarLectura, corregirLectura, ultimaDe, lecturasDeJornada, pendientes,
+  validarRespaldo, FORMATO_RESPALDO,
   guardarFoto, obtenerFoto, crearHoja, hojasPendientes, agregarFotoAHoja, transcribirHoja, liberarFotos,
   sincronizar, exportarRespaldo, importarRespaldo,
   asegurarPersistencia, usoAlmacenamiento, bitacora, idDispositivo

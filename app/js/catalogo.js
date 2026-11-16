@@ -27,18 +27,18 @@ const TIPOS = {
     etiqueta: 'Piezómetro',
     icono: '⇩',
     campos: [
-      { k: 'nivel', label: 'Nivel de agua (profundidad)', unidad: 'm', req: true, decimales: 2, min: 0, max: 600, saltoMax: 5 }
+      { k: 'nivel', label: 'Nivel de agua (profundidad)', unidad: 'm', req: true, decimales: 2, min: 0, max: 300, saltoMax: 5 }
     ]
   },
   pozo: {
     etiqueta: 'Pozo / bomba',
     icono: '⤒',
     campos: [
-      { k: 'caudal', label: 'Caudal', unidad: 'l/s', req: true, decimales: 2, min: 0, max: 300 },
+      { k: 'caudal', label: 'Caudal', unidad: 'l/s', req: true, decimales: 2, min: 0, max: 150 },
       { k: 'volumen', label: 'Volumen (totalizador)', unidad: 'm³', req: false, decimales: 0, monotono: true },
       { k: 'horas', label: 'Tiempo de bombeo', unidad: 'h', req: false, decimales: 1, min: 0, max: 24 },
-      { k: 'voltios', label: 'Voltaje', unidad: 'V', req: false, decimales: 0, min: 0, max: 15000 },
-      { k: 'amperios', label: 'Corriente', unidad: 'A', req: false, decimales: 1, min: 0, max: 2000 },
+      { k: 'voltios', label: 'Voltaje', unidad: 'V', req: false, decimales: 0, min: 0, max: 1000 },
+      { k: 'amperios', label: 'Corriente', unidad: 'A', req: false, decimales: 1, min: 0, max: 500 },
       { k: 'nivelDinamico', label: 'Nivel dinámico', unidad: 'm', req: false, decimales: 1, min: 0 }
     ]
   },
@@ -46,27 +46,20 @@ const TIPOS = {
     etiqueta: 'Regla / nivel de reservorio',
     icono: '▤',
     campos: [
-      { k: 'regla6am', label: 'Regla 06:00', unidad: 'm', req: false, decimales: 2 },
-      { k: 'regla12m', label: 'Regla 12:00', unidad: 'm', req: false, decimales: 2 },
-      { k: 'regla6pm', label: 'Regla 18:00', unidad: 'm', req: false, decimales: 2 },
-      { k: 'nivel', label: 'Nivel / cota', unidad: 'm', req: false, decimales: 2 }
+      { k: 'regla', label: 'Lectura de regla', unidad: 'm', req: true, decimales: 2, min: 0, max: 50, saltoMax: 1 }
     ]
   },
   ptap: {
     etiqueta: 'Planta de tratamiento — control',
     icono: '⚗',
     campos: [
-      { k: 'caudalIngreso', label: 'Caudal de ingreso', unidad: 'l/s', req: false, decimales: 1, min: 0 },
-      { k: 'presionIngreso', label: 'Presión de ingreso', unidad: 'bar', req: false, decimales: 2, min: 0, max: 20 },
-      { k: 'tempIngreso', label: 'T° agua ingreso', unidad: '°C', req: false, decimales: 1, min: -5, max: 45 },
-      { k: 'turbidezIngreso', label: 'Turbidez ingreso', unidad: 'NTU', req: false, decimales: 2, min: 0, max: 1000 },
-      { k: 'turbidezSalida', label: 'Turbidez salida', unidad: 'NTU', req: false, decimales: 2, min: 0, max: 50, alerta: [0, 5] },
-      { k: 'cloroSalida', label: 'Cloro residual salida', unidad: 'ppm', req: false, decimales: 2, min: 0, max: 10, alerta: [0.5, 2.5] },
-      { k: 'phSalida', label: 'pH salida', unidad: 'pH', req: false, decimales: 2, min: 0, max: 14, alerta: [6.5, 8.5] },
-      { k: 'nivelTanqueCruda', label: 'Nivel tanque de agua cruda', unidad: '%', req: false, decimales: 0, min: 0, max: 100 },
-      { k: 'nivelTanqueTratada', label: 'Nivel tanque de agua tratada', unidad: '%', req: false, decimales: 0, min: 0, max: 100 },
-      { k: 'caudalSalida', label: 'Caudal de salida', unidad: 'l/s', req: false, decimales: 1, min: 0 },
-      { k: 'horometro', label: 'Horómetro', unidad: 'h', req: false, decimales: 1, monotono: true }
+      { k: 'caudalIngreso', label: 'Caudal de ingreso', unidad: 'l/s', req: false, decimales: 1, min: 0, max: 500 },
+      { k: 'turbidezIngreso', label: 'Turbidez de ingreso', unidad: 'NTU', req: false, decimales: 2, min: 0, max: 1000 },
+      { k: 'turbidezSalida', label: 'Turbidez de salida', unidad: 'NTU', req: false, decimales: 2, min: 0, max: 50, alerta: [0, 5] },
+      { k: 'cloroSalida', label: 'Cloro residual de salida', unidad: 'mg/L', req: false, decimales: 2, min: 0, max: 10, alerta: [0.5, 2.5] },
+      { k: 'phSalida', label: 'pH de salida', unidad: 'pH', req: false, decimales: 2, min: 0, max: 14, alerta: [6.5, 8.5] },
+      { k: 'nivelTanque', label: 'Nivel del tanque de agua tratada', unidad: '%', req: false, decimales: 0, min: 0, max: 100 },
+      { k: 'horometro', label: 'Horómetro', unidad: 'h', req: false, decimales: 1, min: 0, monotono: true }
     ]
   },
   aforo: {
@@ -110,9 +103,9 @@ const ruta = (rutaId, defs) =>
 
 /* ============================ RUTAS ======================================== */
 const RUTAS = [
-  { id: 'DM-R1', unidad: UNIDAD, nombre: 'Ruta 1 — Caudalímetros de planta', pets: 'PETS-DEMO-01', frecuencia: 'Interdiaria' },
-  { id: 'DM-PZ', unidad: UNIDAD, nombre: 'Piezómetros — sector norte', pets: 'PETS-DEMO-02', frecuencia: 'Mensual', formato: 'F-DEMO-PZ', modoFoto: true },
-  { id: 'DM-EX', unidad: UNIDAD, nombre: 'Pozos de bombeo', pets: 'PETS-DEMO-03', frecuencia: 'Mensual', formato: 'F-DEMO-EX', modoFoto: true },
+  { id: 'DM-R1', unidad: UNIDAD, nombre: 'Ruta 1 — Caudalímetros de planta', pets: 'PETS-DEMO-01', frecuencia: 'Diaria' },
+  { id: 'DM-PZ', unidad: UNIDAD, nombre: 'Piezómetros — sector A', pets: 'PETS-DEMO-02', frecuencia: 'Mensual', formato: 'F-DEMO-02', modoFoto: true },
+  { id: 'DM-EX', unidad: UNIDAD, nombre: 'Pozos de bombeo', pets: 'PETS-DEMO-03', frecuencia: 'Semanal', formato: 'F-DEMO-03', modoFoto: true },
   { id: 'DM-PTAP', unidad: UNIDAD, nombre: 'Planta de tratamiento de agua', pets: 'PETS-DEMO-04', frecuencia: 'Por turno' },
   { id: 'DM-AF', unidad: UNIDAD, nombre: 'Aforos y calidad de agua', pets: 'PETS-DEMO-05', frecuencia: 'Programada' },
   { id: 'DM-RES', unidad: UNIDAD, nombre: 'Reservorios y meteorología', pets: 'PETS-DEMO-06', frecuencia: 'Diaria' }
@@ -126,16 +119,16 @@ const PUNTOS = [].concat(
     ['TANQUE A — LLEGADA', 'caudalometro', { grupo: 'Tanque A', nota: 'Leer PRIMERO la llegada y luego las salidas.' }],
     ['TANQUE A — SALIDA A PROCESO', 'caudalometro', { grupo: 'Tanque A' }],
     ['TANQUE A — SALIDA A SERVICIOS', 'caudalometro', { grupo: 'Tanque A' }],
-    ['LÍNEA DE RIEGO DE VÍAS', 'caudalometro', { grupo: 'Distribución', nota: 'Coordinar por radio si hay un camión cisterna cargando.' }],
+    ['LÍNEA DE RIEGO DE ÁREAS VERDES', 'caudalometro', { grupo: 'Distribución' }],
     ['TALLER DE MANTENIMIENTO', 'caudalometro', { grupo: 'Distribución' }],
     ['OFICINAS Y COMEDOR', 'caudalometro', { grupo: 'Distribución' }]
   ]),
 
   ruta('DM-PZ', ['PZ-01', 'PZ-02', 'PZ-03', 'PZ-04', 'PZ-05', 'PZ-06', 'PZ-07', 'PZ-08']
-    .map(n => [n, 'piezometro', { formato: 'F-DEMO-PZ' }])),
+    .map(n => [n, 'piezometro', { formato: 'F-DEMO-02' }])),
 
   ruta('DM-EX', ['POZO-01', 'POZO-02', 'POZO-03', 'POZO-04']
-    .map(n => [n, 'pozo', { grupo: 'Batería de pozos', formato: 'F-DEMO-EX' }])),
+    .map(n => [n, 'pozo', { grupo: 'Pozos', formato: 'F-DEMO-03' }])),
 
   ruta('DM-PTAP', [
     ['PLANTA — TREN 1', 'ptap'],
@@ -150,7 +143,7 @@ const PUNTOS = [].concat(
 
   ruta('DM-RES', [
     ['RESERVORIO PRINCIPAL', 'regla', { grupo: 'Reservorios' }],
-    ['TOMA DE CAPTACIÓN', 'regla', { grupo: 'Reglas', nota: 'Registrar regla a las 06:00, 12:00 y 18:00.' }],
+    ['TOMA DE CAPTACIÓN', 'regla', { grupo: 'Reglas' }],
     ['ESTACIÓN METEOROLÓGICA', 'meteo', { nota: 'Precipitación y evaporación de las últimas 24 h.' }]
   ])
 );

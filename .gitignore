@@ -1,4 +1,4 @@
-# Material local que no se publica: traspasos de sesión y controles privados
+# Archivos locales que no se versionan
 HANDOFF-*.md
 _privado/
 

@@ -97,3 +97,20 @@ test('el CSV lleva BOM, comillas escapadas y omite las anuladas', () => {
   assert.match(lineas[1], /^"c1",/);
   assert.match(lineas[1], /"dijo ""ok"", luego se fue"/);
 });
+
+test('el CSV trae una columna por cada campo medido, sin perder parámetros', () => {
+  const csv = XLS.csvPlano([
+    lectura({ id: 'a', valores: { acumulado: 10 } }),
+    lectura({ id: 'b', tipo: 'ptap', valores: { phSalida: 7.2, cloroSalida: 1.1 } })
+  ]);
+  const [cab, a, b] = csv.slice(1).split('\n').map(l => l.split(','));
+  for (const c of ['acumulado', 'phSalida', 'cloroSalida']) assert.ok(cab.includes(c), 'falta ' + c);
+  assert.equal(b[cab.indexOf('phSalida')], '7.2');
+  assert.equal(a[cab.indexOf('phSalida')], '');
+});
+
+test('el CSV neutraliza textos que una hoja de cálculo ejecutaría como fórmula', () => {
+  const csv = XLS.csvPlano([lectura({ obs: '=HYPERLINK("http://x")', operador: '@cmd' })]);
+  assert.match(csv, /"'=HYPERLINK\(""http:\/\/x""\)"/);
+  assert.match(csv, /"'@cmd"/);
+});

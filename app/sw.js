@@ -5,7 +5,7 @@
    viven en IndexedDB.
    ========================================================================== */
 
-const CACHE = 'registro-campo-v1.2.0';
+const CACHE = 'registro-campo-v1.0.0';
 const ARCHIVOS = [
   './', './index.html', './estilos.css', './manifest.webmanifest', './icono.svg',
   './js/catalogo.js', './js/db.js', './js/xlsx.js', './js/ocr.js', './js/app.js'
