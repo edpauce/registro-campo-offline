@@ -103,12 +103,12 @@ const ruta = (rutaId, defs) =>
 
 /* ============================ RUTAS ======================================== */
 const RUTAS = [
-  { id: 'DM-R1', unidad: UNIDAD, nombre: 'Ruta 1 — Caudalímetros de planta', pets: 'PETS-DEMO-01', frecuencia: 'Diaria' },
-  { id: 'DM-PZ', unidad: UNIDAD, nombre: 'Piezómetros — sector A', pets: 'PETS-DEMO-02', frecuencia: 'Mensual', formato: 'F-DEMO-02', modoFoto: true },
-  { id: 'DM-EX', unidad: UNIDAD, nombre: 'Pozos de bombeo', pets: 'PETS-DEMO-03', frecuencia: 'Semanal', formato: 'F-DEMO-03', modoFoto: true },
-  { id: 'DM-PTAP', unidad: UNIDAD, nombre: 'Planta de tratamiento de agua', pets: 'PETS-DEMO-04', frecuencia: 'Por turno' },
-  { id: 'DM-AF', unidad: UNIDAD, nombre: 'Aforos y calidad de agua', pets: 'PETS-DEMO-05', frecuencia: 'Programada' },
-  { id: 'DM-RES', unidad: UNIDAD, nombre: 'Reservorios y meteorología', pets: 'PETS-DEMO-06', frecuencia: 'Diaria' }
+  { id: 'DM-R1', unidad: UNIDAD, nombre: 'Ruta 1 — Caudalímetros de planta', procedimiento: 'PROC-DEMO-01', frecuencia: 'Diaria' },
+  { id: 'DM-PZ', unidad: UNIDAD, nombre: 'Piezómetros — sector A', procedimiento: 'PROC-DEMO-02', frecuencia: 'Mensual', formato: 'F-DEMO-02', modoFoto: true },
+  { id: 'DM-EX', unidad: UNIDAD, nombre: 'Pozos de bombeo', procedimiento: 'PROC-DEMO-03', frecuencia: 'Semanal', formato: 'F-DEMO-03', modoFoto: true },
+  { id: 'DM-PTAP', unidad: UNIDAD, nombre: 'Planta de tratamiento de agua', procedimiento: 'PROC-DEMO-04', frecuencia: 'Por turno' },
+  { id: 'DM-AF', unidad: UNIDAD, nombre: 'Aforos y calidad de agua', procedimiento: 'PROC-DEMO-05', frecuencia: 'Programada' },
+  { id: 'DM-RES', unidad: UNIDAD, nombre: 'Reservorios y meteorología', procedimiento: 'PROC-DEMO-06', frecuencia: 'Diaria' }
 ];
 
 /* ============================ PUNTOS ======================================= */

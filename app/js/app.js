@@ -98,7 +98,7 @@ async function vInicio() {
     jornadaHTML = `
       <div class="tarjeta">
         <h2>Sin recorrido abierto</h2>
-        <p>Antes de iniciar se registra el chequeo previo del PETS (IPERC continuo, EPP, tormentas eléctricas).</p>
+        <p>Antes de iniciar se registra el chequeo previo de seguridad (análisis de riesgos, EPP, tormentas eléctricas).</p>
         <button class="primario" onclick="ir('iniciar')">Iniciar recorrido</button>
       </div>`;
   }
@@ -136,7 +136,7 @@ async function vInicio() {
       ${CATALOGO.rutas.filter(r => r.unidad === estado.cfg.unidad).map(r => `
         <li class="item pendiente" onclick="ir('iniciar/${r.id}')">
           <div class="txt"><div class="nom">${esc(r.nombre)}</div>
-          <div class="det">${esc(r.frecuencia || '')} · ${esc(r.pets || r.formato || '')}</div></div>
+          <div class="det">${esc(r.frecuencia || '')} · ${esc(r.procedimiento || r.formato || '')}</div></div>
           <span class="est">${CATALOGO.puntos.filter(p => p.ruta === r.id).length} pts</span>
         </li>`).join('')}
     </ul>
@@ -146,8 +146,8 @@ async function vInicio() {
 
 /* -------------------------------------------------------------- INICIAR --- */
 const CHECKLIST = [
-  'Conozco el PETS y el IPERC de línea base de la tarea.',
-  'IPERC continuo llenado y firmado por el supervisor.',
+  'Conozco el procedimiento y el análisis de riesgos de la tarea.',
+  'Análisis de riesgos del día llenado y firmado por el supervisor.',
   'EPP básico y específico completo y en buen estado.',
   'Herramientas y equipos operativos e inspeccionados según el estándar de la empresa.',
   'Vehículo con check list de preuso conforme; conductor autorizado.',
@@ -160,7 +160,7 @@ async function vIniciar(rutaId) {
   $('#app').innerHTML = `
     <div class="tarjeta">
       <h2>Chequeo previo al recorrido</h2>
-      <p>Queda registrado con hora y responsable: es la evidencia que pide ISO 45001 y el PETS.</p>
+      <p>Queda registrado con hora y responsable: es la evidencia que pide ISO 45001 y el procedimiento.</p>
       <label>Recorrido</label>
       <select id="selRuta">
         ${rutas.map(r => `<option value="${r.id}" ${r.id === rutaId ? 'selected' : ''}>${esc(r.nombre)}</option>`).join('')}
@@ -230,7 +230,7 @@ async function vRuta() {
       <h2>${esc(ruta.nombre || '')}</h2>
       <div class="barra"><i style="width:${puntos.length ? hechos / puntos.length * 100 : 0}%"></i></div>
       <p>${hechos} de ${puntos.length} puntos · ${esc(estado.jornada.operador)}</p>
-      ${ruta.pets ? `<p class="ayuda">Procedimiento aplicable: ${esc(ruta.pets)}${ruta.formato ? ' · formato ' + esc(ruta.formato) : ''}</p>` : ''}
+      ${ruta.procedimiento ? `<p class="ayuda">Procedimiento aplicable: ${esc(ruta.procedimiento)}${ruta.formato ? ' · formato ' + esc(ruta.formato) : ''}</p>` : ''}
     </div>
     ${ruta.modoFoto ? `
     <div class="tarjeta">

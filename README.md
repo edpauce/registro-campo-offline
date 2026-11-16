@@ -171,4 +171,4 @@ Edson Palomino — [github.com/edpauce](https://github.com/edpauce)
 
 ## Licencia
 
-Pendiente de definir.
+Código publicado como muestra de trabajo. Todos los derechos reservados.

@@ -226,7 +226,7 @@ function hojaTrazabilidad(lecturas, jornadas) {
   const filas = [
     ['TRAZABILIDAD DEL REGISTRO — ISO 9001 7.5 / ISO 14001 9.1 / ISO 45001'],
     ['ID REGISTRO', 'PUNTO', 'FECHA', 'HORA', 'OPERADOR', 'EMPRESA', 'DISPOSITIVO', 'GPS', 'FOTO', 'ORIGEN',
-      'ALERTAS DE VALIDACIÓN', 'ESTADO', 'CREADO (UTC)', 'ENVIADO (UTC)', 'CORRIGE A', 'HUELLA', 'JORNADA / IPERC']
+      'ALERTAS DE VALIDACIÓN', 'ESTADO', 'CREADO (UTC)', 'ENVIADO (UTC)', 'CORRIGE A', 'HUELLA', 'RECORRIDO / CHEQUEO PREVIO']
   ];
   const jx = {}; (jornadas || []).forEach(j => { jx[j.id] = j; });
   lecturas.forEach(l => {
