@@ -22,3 +22,15 @@ jobs:
         run: node -e "JSON.parse(require('fs').readFileSync('app/manifest.webmanifest','utf8'))"
       - name: Tests
         run: npm test
+
+  e2e-sin-conexion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Abrir, registrar y exportar sin conexión (Chrome headless)
+        run: npm run test:e2e
+        env:
+          CHROME: google-chrome

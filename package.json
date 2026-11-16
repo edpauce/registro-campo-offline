@@ -5,8 +5,11 @@
   "description": "PWA sin dependencias para registrar mediciones hídricas en campo sin señal.",
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
+    "test:e2e": "node tests/e2e/sin-conexion.mjs",
     "start": "python3 -m http.server 8000 --bind 127.0.0.1 --directory app"
   },
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "license": "UNLICENSED"
 }

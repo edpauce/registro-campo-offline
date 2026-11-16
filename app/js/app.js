@@ -813,7 +813,7 @@ async function exportar(formato) {
   const ls = await seleccion(rango);
   if (!ls.length) { toast('No hay registros en el rango elegido.'); return; }
   const jornadas = await DB.todos(DB.S.JORNADAS);
-  const sello = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const sello = DB.hoyISO() + '-' + DB.horaHM().replace(':', '-');   // hora local del equipo
   const base = `registro_${String(estado.cfg.unidad).replace(/[^\w-]+/g, '-')}_${rango}_${sello}`;
 
   if (formato === 'xlsx') {

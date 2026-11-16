@@ -9,7 +9,7 @@ const { validar, hoyISO } = w.DB;
 const CFG = { toleranciaDelta: 40 };
 
 const punto = (tipo) => w.CATALOGO.puntos.find(p => p.tipo === tipo);
-const haceDias = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const haceDias = (n) => hoyISO(new Date(Date.now() - n * 86400000));
 const niveles = (avisos) => avisos.map(a => a.nivel);
 
 test('un campo obligatorio vacío se rechaza', () => {
@@ -86,4 +86,16 @@ test('un tipo de punto desconocido no rompe la validación', () => {
 
 test('hoyISO devuelve AAAA-MM-DD', () => {
   assert.match(hoyISO(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('hoyISO usa la fecha local: a las 22:00 en UTC-5 sigue siendo el mismo día', () => {
+  const tzAntes = process.env.TZ;
+  process.env.TZ = 'Etc/GMT+5';   // UTC-5 (el signo de Etc/ va invertido)
+  try {
+    // 03:00 UTC del 15-ene = 22:00 del 14-ene en UTC-5
+    assert.equal(hoyISO(new Date('2026-01-15T03:00:00Z')), '2026-01-14');
+    assert.equal(hoyISO(new Date('2026-01-15T12:00:00Z')), '2026-01-15');
+  } finally {
+    if (tzAntes === undefined) delete process.env.TZ; else process.env.TZ = tzAntes;
+  }
 });

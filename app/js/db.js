@@ -92,7 +92,8 @@ async function hash(obj) {
   return Array.from(new Uint8Array(buf)).slice(0, 12).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const hoyISO = () => new Date().toISOString().slice(0, 10);
+// Fecha LOCAL del equipo, no UTC: al oeste de Greenwich, toISOString() ya es "mañana" por la noche.
+const hoyISO = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const horaHM = (d = new Date()) => d.toTimeString().slice(0, 5);
 
 /* ============================== CONFIGURACIÓN =============================== */
