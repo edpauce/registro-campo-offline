@@ -7,6 +7,9 @@ piezómetros, pozos, planta de tratamiento, aforos, reglas y meteorología— **
 señal**. Diez archivos de HTML, CSS y JavaScript, unos 115 KB en total, sin dependencias:
 no usa npm, CDN ni compilación. Se copia una carpeta a un servidor HTTPS y funciona.
 
+**Demo en vivo:** [edpauce.github.io/registro-campo-offline](https://edpauce.github.io/registro-campo-offline/).
+Ábrela una vez con señal, activa el modo avión y sigue usándola.
+
 > **Datos ficticios.** El catálogo de puntos (`app/js/catalogo.js`) es una planta de
 > demostración inventada. Cualquier parecido de un nombre o código con una operación real
 > es casual.
